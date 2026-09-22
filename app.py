@@ -698,7 +698,6 @@ def exam_taking():
                     f"q_{q['id']}", labels, index=prev_idx, key=f"radio_{q['id']}",
                     label_visibility="collapsed", disabled=True
                 )
-                st.caption("✔️ উত্তর দেওয়া হয়ে গেছে — বদলানো যাবে না")
             else:
                 choice = st.radio(
                     f"q_{q['id']}", labels, index=None, key=f"radio_{q['id']}", label_visibility="collapsed"
