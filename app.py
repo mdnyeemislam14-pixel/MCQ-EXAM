@@ -657,6 +657,11 @@ def exam_taking():
 
     st_autorefresh(interval=1000, key="exam_timer_refresh")
 
+    questions = st.session_state.exam_questions
+    answered_count = len(st.session_state.exam_answers)
+    total_count = len(questions)
+    progress_pct = int((answered_count / total_count) * 100) if total_count else 0
+
     mins, secs = divmod(remaining, 60)
     timer_class = "timer-box timer-warning" if remaining <= 60 else "timer-box"
     c1, c2 = st.columns([3, 1])
@@ -666,9 +671,15 @@ def exam_taking():
     with c2:
         st.markdown(f"<div class='{timer_class}'>⏱️ {mins:02d}:{secs:02d}</div>", unsafe_allow_html=True)
 
+    st.markdown(
+        f"<div class='subject-meta' style='margin-top:4px;'>উত্তর দেওয়া হয়েছে: "
+        f"<b>{answered_count} / {total_count}</b></div>",
+        unsafe_allow_html=True
+    )
+    st.progress(progress_pct / 100)
+
     st.markdown("---")
 
-    questions = st.session_state.exam_questions
     for idx, q in enumerate(questions, start=1):
         with st.container(border=True):
             st.markdown(
@@ -678,13 +689,23 @@ def exam_taking():
             )
             options = {"ক": q["option_ka"], "খ": q["option_kha"], "গ": q["option_ga"], "ঘ": q["option_gha"]}
             labels = [f"{k}) {v}" for k, v in options.items()]
-            prev = st.session_state.exam_answers.get(str(q["id"]))
-            prev_idx = ["ক", "খ", "গ", "ঘ"].index(prev) if prev else None
-            choice = st.radio(
-                f"q_{q['id']}", labels, index=prev_idx, key=f"radio_{q['id']}", label_visibility="collapsed"
-            )
-            if choice:
-                st.session_state.exam_answers[str(q["id"])] = choice.split(")")[0].strip()
+            already_answered = str(q["id"]) in st.session_state.exam_answers
+
+            if already_answered:
+                prev = st.session_state.exam_answers[str(q["id"])]
+                prev_idx = ["ক", "খ", "গ", "ঘ"].index(prev)
+                st.radio(
+                    f"q_{q['id']}", labels, index=prev_idx, key=f"radio_{q['id']}",
+                    label_visibility="collapsed", disabled=True
+                )
+                st.caption("✔️ উত্তর দেওয়া হয়ে গেছে — বদলানো যাবে না")
+            else:
+                choice = st.radio(
+                    f"q_{q['id']}", labels, index=None, key=f"radio_{q['id']}", label_visibility="collapsed"
+                )
+                if choice:
+                    st.session_state.exam_answers[str(q["id"])] = choice.split(")")[0].strip()
+                    st.rerun()
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
     st.markdown("---")
