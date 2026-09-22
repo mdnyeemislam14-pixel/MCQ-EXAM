@@ -148,6 +148,22 @@ html, body, [class*="css"] { font-family: 'Hind Siliguri', sans-serif; }
 }
 .q-text { font-size: 16px; color: var(--text-main); }
 
+/* ---------- উত্তর লক হওয়ার পর দেখানো (কাস্টম রেডিও লুক) ---------- */
+.locked-options { margin-top: 6px; }
+.locked-option {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 4px; font-size: 15px; color: var(--text-muted);
+}
+.locked-option.locked-selected { color: var(--text-main); font-weight: 600; }
+.locked-dot {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #C0392B; border: 2px solid #C0392B; flex-shrink: 0;
+}
+.locked-dot-empty {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid #D8D3C4; flex-shrink: 0;
+}
+
 /* ---------- ফলাফল স্কোরকার্ড ---------- */
 .score-card {
     border-radius: 16px; padding: 26px; text-align: center;
@@ -688,23 +704,31 @@ def exam_taking():
                 unsafe_allow_html=True
             )
             options = {"ক": q["option_ka"], "খ": q["option_kha"], "গ": q["option_ga"], "ঘ": q["option_gha"]}
-            labels = [f"{k}) {v}" for k, v in options.items()]
             already_answered = str(q["id"]) in st.session_state.exam_answers
 
             if already_answered:
                 prev = st.session_state.exam_answers[str(q["id"])]
-                prev_idx = ["ক", "খ", "গ", "ঘ"].index(prev)
-                st.radio(
-                    f"q_{q['id']}", labels, index=prev_idx, key=f"radio_{q['id']}",
-                    label_visibility="collapsed", disabled=True
-                )
+                rows_html = "<div class='locked-options'>"
+                for label, text in options.items():
+                    if label == prev:
+                        rows_html += (
+                            f"<div class='locked-option locked-selected'>"
+                            f"<span class='locked-dot'></span>{label}) {text}</div>"
+                        )
+                    else:
+                        rows_html += (
+                            f"<div class='locked-option'>"
+                            f"<span class='locked-dot-empty'></span>{label}) {text}</div>"
+                        )
+                rows_html += "</div>"
+                st.markdown(rows_html, unsafe_allow_html=True)
             else:
+                labels = [f"{k}) {v}" for k, v in options.items()]
                 choice = st.radio(
                     f"q_{q['id']}", labels, index=None, key=f"radio_{q['id']}", label_visibility="collapsed"
                 )
                 if choice:
                     st.session_state.exam_answers[str(q["id"])] = choice.split(")")[0].strip()
-                    st.rerun()
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
     st.markdown("---")
