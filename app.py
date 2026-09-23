@@ -14,6 +14,31 @@ import db
 from question_parser import parse_questions
 
 ADMIN_PASSWORD = "098765"
+ADMIN_NAME = "মো: নাঈম ইসলাম"
+ADMIN_DESIGNATION = "সহকারী শিক্ষক"
+
+BN_DIGITS = str.maketrans("0123456789", "০১২৩৪৫৬৭৮৯")
+BN_MONTHS = {
+    1: "জানুয়ারি", 2: "ফেব্রুয়ারি", 3: "মার্চ", 4: "এপ্রিল", 5: "মে", 6: "জুন",
+    7: "জুলাই", 8: "আগস্ট", 9: "সেপ্টেম্বর", 10: "অক্টোবর", 11: "নভেম্বর", 12: "ডিসেম্বর",
+}
+
+
+def format_bn_datetime(iso_str):
+    """ISO টাইমস্ট্যাম্পকে '২৩ সেপ্টেম্বর ২০২৬, দুপুর ০২:৩৫' আকারে ফরম্যাট করে (১২-ঘণ্টা)"""
+    if not iso_str:
+        return ""
+    try:
+        dt = datetime.datetime.fromisoformat(iso_str)
+    except ValueError:
+        return iso_str
+    hour12 = dt.strftime("%I:%M")
+    ampm = "দুপুর" if 12 <= dt.hour < 18 else ("বিকাল" if dt.hour >= 18 and dt.hour < 20 else
+           ("রাত" if dt.hour >= 20 or dt.hour < 4 else ("ভোর" if dt.hour < 6 else "সকাল")))
+    day = str(dt.day).translate(BN_DIGITS)
+    year = str(dt.year).translate(BN_DIGITS)
+    time_bn = hour12.translate(BN_DIGITS)
+    return f"{day} {BN_MONTHS[dt.month]} {year}, {ampm} {time_bn}"
 
 st.set_page_config(page_title="অনলাইন এম.সি.কিউ প্ল্যাটফর্ম", page_icon="📝", layout="wide")
 
@@ -217,6 +242,7 @@ defaults = {
     "exam_start_time": None,
     "exam_answers": {},
     "exam_submitted_result": None,
+    "confirm_submit_pending": False,
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -225,7 +251,7 @@ for k, v in defaults.items():
 
 def go_home():
     for key in ["student_registered", "exam_chapter_id", "exam_questions",
-                "exam_cfg", "exam_chapter_info",
+                "exam_cfg", "exam_chapter_info", "confirm_submit_pending",
                 "exam_start_time", "exam_answers", "exam_submitted_result"]:
         st.session_state[key] = defaults[key]
 
@@ -303,6 +329,7 @@ def admin_panel():
             df = pd.DataFrame(all_subs)[
                 ["student_name", "student_class", "subject_name", "chapter_name", "score", "total_marks", "submitted_at"]
             ]
+            df["submitted_at"] = df["submitted_at"].apply(format_bn_datetime)
             df.columns = ["নাম", "শ্রেণি", "বিষয়", "অধ্যায়", "প্রাপ্ত নম্বর", "পূর্ণমান", "জমার সময়"]
             st.dataframe(df.head(20), use_container_width=True, hide_index=True)
 
@@ -507,7 +534,7 @@ def admin_panel():
                         "ভুল": s["wrong_count"],
                         "অনুত্তরিত": s["unanswered_count"],
                         "সময় লেগেছে": f"{mins}মি {secs}সে",
-                        "জমার সময়": s["submitted_at"][:16].replace("T", " "),
+                        "জমার সময়": format_bn_datetime(s["submitted_at"]),
                     })
                 df = pd.DataFrame(rows)
                 st.dataframe(df, use_container_width=True, hide_index=True)
@@ -538,6 +565,12 @@ def student_registration():
             else:
                 st.warning("নাম ও শ্রেণি দুটোই লিখুন।")
 
+    st.markdown(
+        f"<div style='text-align:center; margin-top:60px; color:#B8B2A2; font-size:12.5px;'>"
+        f"{ADMIN_NAME}<br>{ADMIN_DESIGNATION}</div>",
+        unsafe_allow_html=True
+    )
+
 
 def subject_selection():
     render_header()
@@ -548,7 +581,8 @@ def subject_selection():
     )
     st.write("নিচে থেকে বিষয় ও অধ্যায় নির্বাচন করে পরীক্ষা শুরু করো।")
 
-    subjects = db.get_subjects()
+    with st.spinner("লোড হচ্ছে..."):
+        subjects = db.get_subjects()
 
     dynamic_css = "<style>"
     for subj in subjects:
@@ -750,14 +784,28 @@ def exam_taking():
             st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
     st.markdown("---")
-    if st.button("✅ পরীক্ষা জমা দাও (Submit)", type="primary"):
-        try:
-            grade_and_submit()
-        except Exception as e:
-            st.error("⚠️ সাবমিট করতে সমস্যা হয়েছে। নিচের এররটি স্ক্রিনশট নিয়ে জানান:")
-            st.exception(e)
-            st.stop()
-        st.rerun()
+    if not st.session_state.confirm_submit_pending:
+        if st.button("✅ পরীক্ষা জমা দাও (Submit)", type="primary"):
+            st.session_state.confirm_submit_pending = True
+            st.rerun()
+    else:
+        st.warning("আপনি কি সত্যিই পরীক্ষা জমা দিতে চান? জমা দেওয়ার পর আর উত্তর পরিবর্তন করা যাবে না।")
+        cyes, cno = st.columns(2)
+        with cyes:
+            if st.button("✅ হ্যাঁ, জমা দাও", type="primary", key="confirm_submit_yes"):
+                st.session_state.confirm_submit_pending = False
+                with st.spinner("জমা হচ্ছে..."):
+                    try:
+                        grade_and_submit()
+                    except Exception as e:
+                        st.error("⚠️ সাবমিট করতে সমস্যা হয়েছে। নিচের এররটি স্ক্রিনশট নিয়ে জানান:")
+                        st.exception(e)
+                        st.stop()
+                st.rerun()
+        with cno:
+            if st.button("❌ না, ফিরে যাও", key="confirm_submit_no"):
+                st.session_state.confirm_submit_pending = False
+                st.rerun()
 
 
 def exam_result():
