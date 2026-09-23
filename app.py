@@ -212,6 +212,8 @@ defaults = {
     "student_registered": False,
     "exam_chapter_id": None,
     "exam_questions": None,
+    "exam_cfg": None,
+    "exam_chapter_info": None,
     "exam_start_time": None,
     "exam_answers": {},
     "exam_submitted_result": None,
@@ -223,6 +225,7 @@ for k, v in defaults.items():
 
 def go_home():
     for key in ["student_registered", "exam_chapter_id", "exam_questions",
+                "exam_cfg", "exam_chapter_info",
                 "exam_start_time", "exam_answers", "exam_submitted_result"]:
         st.session_state[key] = defaults[key]
 
@@ -606,6 +609,8 @@ def subject_selection():
                     if st.button("🚀 পরীক্ষা শুরু করো", key=f"start_{subj['id']}", type="primary"):
                         st.session_state.exam_chapter_id = chosen_chapter["id"]
                         st.session_state.exam_questions = db.get_questions(chosen_chapter["id"])
+                        st.session_state.exam_cfg = cfg
+                        st.session_state.exam_chapter_info = chosen_chapter
                         st.session_state.exam_start_time = time.time()
                         st.session_state.exam_answers = {}
                         st.session_state.exam_submitted_result = None
@@ -619,8 +624,8 @@ def grade_and_submit():
     questions = st.session_state.exam_questions
     answers = st.session_state.exam_answers
 
-    cfg = db.get_exam_config(chapter_id)
-    chapter = db.get_chapter(chapter_id)
+    cfg = st.session_state.exam_cfg
+    chapter = st.session_state.exam_chapter_info
     subject = db.get_subjects()
     subject_name = next((s["name"] for s in subject if s["id"] == chapter["subject_id"]), "")
 
@@ -668,7 +673,7 @@ def grade_and_submit():
 
 
 def exam_taking():
-    cfg = db.get_exam_config(st.session_state.exam_chapter_id)
+    cfg = st.session_state.exam_cfg
     duration_seconds = cfg["duration_minutes"] * 60
     elapsed = time.time() - st.session_state.exam_start_time
     remaining = int(duration_seconds - elapsed)
@@ -695,7 +700,7 @@ def exam_taking():
 
     c1, c2 = st.columns([3, 1])
     with c1:
-        chapter = db.get_chapter(st.session_state.exam_chapter_id)
+        chapter = st.session_state.exam_chapter_info
         st.markdown(f"#### 📝 {chapter['name']} — পরীক্ষা চলছে")
     with c2:
         st.markdown(f"<div class='{timer_class}'>⏱️ {mins:02d}:{secs:02d}</div>", unsafe_allow_html=True)
