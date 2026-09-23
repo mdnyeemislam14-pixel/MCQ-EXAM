@@ -16,15 +16,16 @@ from question_parser import parse_questions
 ADMIN_PASSWORD = "098765"
 
 st.set_page_config(page_title="অনলাইন এম.সি.কিউ প্ল্যাটফর্ম", page_icon="📝", layout="wide")
+
 db.init_db()
 
 # ---------------------------------------------------------------------------
 # বিষয়ভিত্তিক রঙ ও আইকন (প্রতিটি বিষয়ের নিজস্ব পরিচয়)
 # ---------------------------------------------------------------------------
 SUBJECT_STYLE = {
-    "জীববিজ্ঞান":   {"color": "#2F8F5B", "soft": "#EAF6EF", "icon": "🌿"},
+    "জীববিজ্ঞান": {"color": "#2F8F5B", "soft": "#EAF6EF", "icon": "🌿"},
     "পদার্থবিজ্ঞান": {"color": "#35578C", "soft": "#EAF0F8", "icon": "⚛️"},
-    "রসায়ন":       {"color": "#C1752E", "soft": "#FBF0E5", "icon": "🧪"},
+    "রসায়ন": {"color": "#C1752E", "soft": "#FBF0E5", "icon": "🧪"},
 }
 DEFAULT_SUBJECT_STYLE = {"color": "#5B6B63", "soft": "#F1F1EC", "icon": "📘"}
 
@@ -199,11 +200,12 @@ def render_header():
     </div>
     """, unsafe_allow_html=True)
 
+
 # ---------------------------------------------------------------------------
 # সেশন স্টেট ইনিশিয়ালাইজ
 # ---------------------------------------------------------------------------
 defaults = {
-    "role": None,               # "student" / "admin"
+    "role": None,  # "student" / "admin"
     "admin_authenticated": False,
     "student_name": "",
     "student_class": "",
@@ -270,6 +272,7 @@ def admin_panel():
     with tabs[0]:
         st.subheader("সার্বিক পরিসংখ্যান")
         all_subs = db.get_all_submissions()
+
         col1, col2, col3 = st.columns(3)
         col1.metric("মোট বিষয়", len(subjects))
         total_chapters = sum(len(db.get_chapters(s["id"])) for s in subjects)
@@ -321,6 +324,7 @@ def admin_panel():
         chapters = db.get_chapters(subj["id"])
         if not chapters:
             st.info("এখনো কোনো অধ্যায় যোগ করা হয়নি।")
+
         for ch in chapters:
             q_count = len(db.get_questions(ch["id"]))
             c1, c2, c3, c4 = st.columns([4, 2, 1, 1])
@@ -357,7 +361,7 @@ def admin_panel():
 
             st.markdown("##### 📋 একসাথে অনেকগুলো প্রশ্ন পেস্ট করুন")
             st.caption(
-                "ফরম্যাট: প্রশ্ন → ক) খ) গ) ঘ) → উত্তর: ক/খ/গ/ঘ  |  প্রতিটি প্রশ্নের পর একটি নতুন লাইন দিন।"
+                "ফরম্যাট: প্রশ্ন → ক) খ) গ) ঘ) → উত্তর: ক/খ/গ/ঘ | প্রতিটি প্রশ্নের পর একটি নতুন লাইন দিন।"
             )
             with st.expander("উদাহরণ দেখুন"):
                 st.code(
@@ -432,9 +436,9 @@ def admin_panel():
             chapter_names3 = {ch["name"]: ch["id"] for ch in chapters3}
             ch_choice3 = st.selectbox("অধ্যায় নির্বাচন করুন", list(chapter_names3.keys()), key="exam_chapter_select")
             chapter_id3 = chapter_names3[ch_choice3]
+
             cfg = db.get_exam_config(chapter_id3)
             q_count3 = len(db.get_questions(chapter_id3))
-
             st.caption(f"এই অধ্যায়ে মোট প্রশ্ন সংখ্যা: {q_count3}")
 
             with st.form("exam_config_form"):
@@ -517,6 +521,7 @@ def student_registration():
     render_header()
     st.markdown('<div class="big-title">পরীক্ষায় স্বাগতম</div>', unsafe_allow_html=True)
     st.write("পরীক্ষা শুরু করার আগে নিচে আপনার তথ্য দিন।")
+
     with st.form("student_reg_form"):
         name = st.text_input("তোমার নাম")
         cls = st.text_input("তোমার শ্রেণি (যেমনঃ নবম, দশম)")
@@ -542,7 +547,6 @@ def subject_selection():
 
     subjects = db.get_subjects()
 
-    # প্রতিটি বিষয় কার্ডের উপরে তার নিজস্ব রঙের পটি বসানো (গতিশীলভাবে তৈরি CSS)
     dynamic_css = "<style>"
     for subj in subjects:
         style = subject_style(subj["name"])
@@ -553,12 +557,12 @@ def subject_selection():
     st.markdown(dynamic_css, unsafe_allow_html=True)
 
     cols = st.columns(len(subjects))
-
     for col, subj in zip(cols, subjects):
         style = subject_style(subj["name"])
         with col:
             with st.container(border=True, key=f"subject_card_{subj['id']}"):
                 active_ch = db.get_active_chapter_for_subject(subj["id"])
+
                 st.markdown(
                     f"<div class='subject-card-head'>"
                     f"<div class='subject-icon-badge' style='background:{style['soft']};'>{style['icon']}</div>"
@@ -566,6 +570,7 @@ def subject_selection():
                     f"</div>",
                     unsafe_allow_html=True
                 )
+
                 if active_ch:
                     st.markdown(
                         "<div class='status-pill status-running'>"
@@ -586,9 +591,9 @@ def subject_selection():
                 chapter_names = [c["name"] for c in chapters]
                 chosen = st.selectbox("অধ্যায় নির্বাচন করো", chapter_names, key=f"select_ch_{subj['id']}")
                 chosen_chapter = next(c for c in chapters if c["name"] == chosen)
+
                 cfg = db.get_exam_config(chosen_chapter["id"])
                 q_count = len(db.get_questions(chosen_chapter["id"]))
-
                 is_running = active_ch is not None and active_ch["id"] == chosen_chapter["id"]
 
                 if is_running:
@@ -613,6 +618,7 @@ def grade_and_submit():
     chapter_id = st.session_state.exam_chapter_id
     questions = st.session_state.exam_questions
     answers = st.session_state.exam_answers
+
     cfg = db.get_exam_config(chapter_id)
     chapter = db.get_chapter(chapter_id)
     subject = db.get_subjects()
@@ -631,6 +637,7 @@ def grade_and_submit():
         else:
             wrong_count += 1
             is_correct = False
+
         detail.append({
             "question": q["question_text"],
             "options": {"ক": q["option_ka"], "খ": q["option_kha"], "গ": q["option_ga"], "ঘ": q["option_gha"]},
@@ -667,7 +674,12 @@ def exam_taking():
     remaining = int(duration_seconds - elapsed)
 
     if remaining <= 0:
-        grade_and_submit()
+        try:
+            grade_and_submit()
+        except Exception as e:
+            st.error("⚠️ সময় শেষে অটো-সাবমিট করতে সমস্যা হয়েছে। নিচের এররটি স্ক্রিনশট নিয়ে জানান:")
+            st.exception(e)
+            st.stop()
         st.rerun()
         return
 
@@ -680,6 +692,7 @@ def exam_taking():
 
     mins, secs = divmod(remaining, 60)
     timer_class = "timer-box timer-warning" if remaining <= 60 else "timer-box"
+
     c1, c2 = st.columns([3, 1])
     with c1:
         chapter = db.get_chapter(st.session_state.exam_chapter_id)
@@ -693,7 +706,6 @@ def exam_taking():
         unsafe_allow_html=True
     )
     st.progress(progress_pct / 100)
-
     st.markdown("---")
 
     for idx, q in enumerate(questions, start=1):
@@ -729,11 +741,17 @@ def exam_taking():
                 )
                 if choice:
                     st.session_state.exam_answers[str(q["id"])] = choice.split(")")[0].strip()
-        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+
+            st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
     st.markdown("---")
     if st.button("✅ পরীক্ষা জমা দাও (Submit)", type="primary"):
-        grade_and_submit()
+        try:
+            grade_and_submit()
+        except Exception as e:
+            st.error("⚠️ সাবমিট করতে সমস্যা হয়েছে। নিচের এররটি স্ক্রিনশট নিয়ে জানান:")
+            st.exception(e)
+            st.stop()
         st.rerun()
 
 
