@@ -39,6 +39,7 @@ def init_db():
 
 # ---------------- বিষয় (Subjects) ----------------
 
+@st.cache_data(ttl=5)
 def get_subjects():
     res = supabase.table("subjects").select("*").order("id").execute()
     return res.data
@@ -51,6 +52,7 @@ def get_subject_by_name(name):
 
 # ---------------- অধ্যায় (Chapters) ----------------
 
+@st.cache_data(ttl=5)
 def get_chapters(subject_id):
     res = (
         supabase.table("chapters")
@@ -91,19 +93,24 @@ def add_chapter(subject_id, name):
         {"chapter_id": chapter_id, "updated_at": datetime.datetime.now().isoformat()}
     ).execute()
 
+    get_chapters.clear()
     return chapter_id
 
 
 def update_chapter(chapter_id, name):
     supabase.table("chapters").update({"name": name.strip()}).eq("id", chapter_id).execute()
+    get_chapters.clear()
 
 
 def delete_chapter(chapter_id):
     supabase.table("chapters").delete().eq("id", chapter_id).execute()
+    get_chapters.clear()
+    get_active_chapter_for_subject.clear()
 
 
 # ---------------- প্রশ্ন (Questions) ----------------
 
+@st.cache_data(ttl=5)
 def get_questions(chapter_id):
     res = (
         supabase.table("questions")
@@ -133,6 +140,7 @@ def add_question(chapter_id, question_text, ka, kha, ga, gha, correct_option):
             "created_at": datetime.datetime.now().isoformat(),
         }
     ).execute()
+    get_questions.clear()
 
 
 def add_questions_bulk(chapter_id, parsed_questions):
@@ -153,6 +161,7 @@ def add_questions_bulk(chapter_id, parsed_questions):
     ]
     if rows:
         supabase.table("questions").insert(rows).execute()
+        get_questions.clear()
 
 
 def update_question(question_id, question_text, ka, kha, ga, gha, correct_option):
@@ -166,14 +175,17 @@ def update_question(question_id, question_text, ka, kha, ga, gha, correct_option
             "correct_option": correct_option.strip(),
         }
     ).eq("id", question_id).execute()
+    get_questions.clear()
 
 
 def delete_question(question_id):
     supabase.table("questions").delete().eq("id", question_id).execute()
+    get_questions.clear()
 
 
 # ---------------- পরীক্ষার সেটিংস (Exam Config) ----------------
 
+@st.cache_data(ttl=5)
 def get_exam_config(chapter_id):
     res = supabase.table("exam_config").select("*").eq("chapter_id", chapter_id).execute()
     if res.data:
@@ -195,6 +207,7 @@ def update_exam_config(chapter_id, duration_minutes, marks_per_question, negativ
             "updated_at": datetime.datetime.now().isoformat(),
         }
     ).eq("chapter_id", chapter_id).execute()
+    get_exam_config.clear()
 
 
 def set_exam_active(chapter_id, active):
@@ -213,8 +226,11 @@ def set_exam_active(chapter_id, active):
     supabase.table("exam_config").update(
         {"is_active": bool(active), "updated_at": datetime.datetime.now().isoformat()}
     ).eq("chapter_id", chapter_id).execute()
+    get_exam_config.clear()
+    get_active_chapter_for_subject.clear()
 
 
+@st.cache_data(ttl=5)
 def get_active_chapter_for_subject(subject_id):
     chapters = get_chapters(subject_id)
     if not chapters:
