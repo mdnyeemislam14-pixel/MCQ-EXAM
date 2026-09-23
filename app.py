@@ -811,7 +811,15 @@ def exam_taking():
 def exam_result():
     r = st.session_state.exam_submitted_result
     render_header()
-    st.markdown(f'<div class="big-title">ফলাফল — {r["chapter_name"]}</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="big-title">🎉 অভিনন্দন, {st.session_state.student_name}!</div>',
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        f'<div class="subject-meta" style="margin-top:-6px; margin-bottom:14px;">'
+        f'{r["subject_name"]} — {r["chapter_name"]} পরীক্ষার ফলাফল</div>',
+        unsafe_allow_html=True
+    )
 
     pct = round((r["score"] / r["total_marks"]) * 100, 1) if r["total_marks"] else 0
     score_class = "score-good" if pct >= 80 else ("score-mid" if pct >= 50 else "score-low")
