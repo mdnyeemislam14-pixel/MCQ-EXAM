@@ -15,6 +15,12 @@ import streamlit as st
 from supabase import create_client, Client
 
 FIXED_SUBJECTS = ["জীববিজ্ঞান", "পদার্থবিজ্ঞান", "রসায়ন"]
+BD_TZ = datetime.timezone(datetime.timedelta(hours=6))
+
+
+def bd_now_iso():
+    """সার্ভার যে টাইমজোনেই থাকুক না কেন, সবসময় বাংলাদেশ সময় (UTC+6) রিটার্ন করে"""
+    return datetime.datetime.now(BD_TZ).isoformat()
 
 
 @st.cache_resource
@@ -90,7 +96,7 @@ def add_chapter(subject_id, name):
     chapter_id = res.data[0]["id"]
 
     supabase.table("exam_config").insert(
-        {"chapter_id": chapter_id, "updated_at": datetime.datetime.now().isoformat()}
+        {"chapter_id": chapter_id, "updated_at": bd_now_iso()}
     ).execute()
 
     get_chapters.clear()
@@ -137,7 +143,7 @@ def add_question(chapter_id, question_text, ka, kha, ga, gha, correct_option):
             "option_ga": ga.strip(),
             "option_gha": gha.strip(),
             "correct_option": correct_option.strip(),
-            "created_at": datetime.datetime.now().isoformat(),
+            "created_at": bd_now_iso(),
         }
     ).execute()
     get_questions.clear()
@@ -145,7 +151,7 @@ def add_question(chapter_id, question_text, ka, kha, ga, gha, correct_option):
 
 def add_questions_bulk(chapter_id, parsed_questions):
     """parsed_questions: question_parser.parse_questions() থেকে আসা তালিকা"""
-    now = datetime.datetime.now().isoformat()
+    now = bd_now_iso()
     rows = [
         {
             "chapter_id": chapter_id,
@@ -192,7 +198,7 @@ def get_exam_config(chapter_id):
         return res.data[0]
 
     supabase.table("exam_config").insert(
-        {"chapter_id": chapter_id, "updated_at": datetime.datetime.now().isoformat()}
+        {"chapter_id": chapter_id, "updated_at": bd_now_iso()}
     ).execute()
     res = supabase.table("exam_config").select("*").eq("chapter_id", chapter_id).execute()
     return res.data[0]
@@ -204,7 +210,7 @@ def update_exam_config(chapter_id, duration_minutes, marks_per_question, negativ
             "duration_minutes": duration_minutes,
             "marks_per_question": marks_per_question,
             "negative_marks": negative_marks,
-            "updated_at": datetime.datetime.now().isoformat(),
+            "updated_at": bd_now_iso(),
         }
     ).eq("chapter_id", chapter_id).execute()
     get_exam_config.clear()
@@ -224,7 +230,7 @@ def set_exam_active(chapter_id, active):
                 ).execute()
 
     supabase.table("exam_config").update(
-        {"is_active": bool(active), "updated_at": datetime.datetime.now().isoformat()}
+        {"is_active": bool(active), "updated_at": bd_now_iso()}
     ).eq("chapter_id", chapter_id).execute()
     get_exam_config.clear()
     get_active_chapter_for_subject.clear()
@@ -278,7 +284,7 @@ def save_submission(
                 "score": score,
                 "total_marks": total_marks,
                 "time_taken_seconds": time_taken_seconds,
-                "submitted_at": datetime.datetime.now().isoformat(),
+                "submitted_at": bd_now_iso(),
             }
         )
         .execute()
