@@ -829,6 +829,9 @@ def exam_taking():
 
 def exam_result():
     r = st.session_state.exam_submitted_result
+    if st.button("🏠 হোমে ফিরে যান", key="home_top_btn"):
+        go_home()
+        st.rerun()
     render_header()
     st.markdown(
         f'<div class="big-title">🎉 অভিনন্দন, {st.session_state.student_name}!</div>',
