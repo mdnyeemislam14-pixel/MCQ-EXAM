@@ -5,6 +5,7 @@ app.py — অনলাইন MCQ পরীক্ষা প্ল্যাটফ
 """
 
 import time
+import random
 import datetime
 import pandas as pd
 import streamlit as st
@@ -312,16 +313,17 @@ def admin_panel():
         st.markdown("#### চলমান পরীক্ষা")
         running_any = False
         for s in subjects:
-            active_ch = db.get_active_chapter_for_subject(s["id"])
-            if active_ch:
-                running_any = True
-                cfg = db.get_exam_config(active_ch["id"])
-                st.markdown(
-                    f"- **{s['name']}** → *{active_ch['name']}* "
-                    f"(সময়: {cfg['duration_minutes']} মিনিট, প্রতি প্রশ্নে মার্ক: {cfg['marks_per_question']}) "
-                    f"<span class='exam-running'>● পরীক্ষা চলছে</span>",
-                    unsafe_allow_html=True
-                )
+            for ch in db.get_chapters(s["id"]):
+                cfg = db.get_exam_config(ch["id"])
+                if cfg["is_active"]:
+                    running_any = True
+                    qc = cfg.get("question_count") or "সবগুলো"
+                    st.markdown(
+                        f"- **{s['name']}** → *{ch['name']}* "
+                        f"(সময়: {cfg['duration_minutes']} মিনিট, প্রশ্ন: {qc}, প্রতি প্রশ্নে মার্ক: {cfg['marks_per_question']}) "
+                        f"<span class='exam-running'>● পরীক্ষা চলছে</span>",
+                        unsafe_allow_html=True
+                    )
         if not running_any:
             st.caption("এই মুহূর্তে কোনো পরীক্ষা চলছে না।")
 
@@ -479,9 +481,19 @@ def admin_panel():
                                          value=float(cfg["marks_per_question"]), step=0.25)
                 neg = st.number_input("ভুল উত্তরে নেগেটিভ মার্ক (ঐচ্ছিক, ০ দিলে নেই)", min_value=0.0,
                                        max_value=10.0, value=float(cfg["negative_marks"]), step=0.25)
+                if q_count3 > 0:
+                    default_qc = cfg.get("question_count") or q_count3
+                    default_qc = min(default_qc, q_count3)
+                    q_to_use = st.number_input(
+                        f"পরীক্ষায় কতটা প্রশ্ন ব্যবহার হবে (মোট আছে {q_count3}টি)",
+                        min_value=1, max_value=q_count3, value=default_qc,
+                    )
+                    st.caption("প্রশ্নভাণ্ডার থেকে এলোমেলোভাবে এই সংখ্যক প্রশ্ন বেছে পরীক্ষা নেওয়া হবে।")
+                else:
+                    q_to_use = None
                 save_cfg = st.form_submit_button("💾 সেটিংস সংরক্ষণ করুন")
                 if save_cfg:
-                    db.update_exam_config(chapter_id3, int(duration), marks, neg)
+                    db.update_exam_config(chapter_id3, int(duration), marks, neg, q_to_use)
                     st.success("সেটিংস সংরক্ষণ হয়েছে।")
                     st.rerun()
 
@@ -599,7 +611,8 @@ def subject_selection():
         style = subject_style(subj["name"])
         with col:
             with st.container(border=True, key=f"subject_card_{subj['id']}"):
-                active_ch = db.get_active_chapter_for_subject(subj["id"])
+                chapters = db.get_chapters(subj["id"])
+                any_running = any(db.get_exam_config(c["id"])["is_active"] for c in chapters) if chapters else False
 
                 st.markdown(
                     f"<div class='subject-card-head'>"
@@ -609,7 +622,7 @@ def subject_selection():
                     unsafe_allow_html=True
                 )
 
-                if active_ch:
+                if any_running:
                     st.markdown(
                         "<div class='status-pill status-running'>"
                         "<span class='pulse-dot'></span> পরীক্ষা চলছে</div>",
@@ -621,7 +634,6 @@ def subject_selection():
                         unsafe_allow_html=True
                     )
 
-                chapters = db.get_chapters(subj["id"])
                 if not chapters:
                     st.caption("এখনো কোনো অধ্যায় নেই।")
                     continue
@@ -631,19 +643,25 @@ def subject_selection():
                 chosen_chapter = next(c for c in chapters if c["name"] == chosen)
 
                 cfg = db.get_exam_config(chosen_chapter["id"])
-                q_count = len(db.get_questions(chosen_chapter["id"]))
-                is_running = active_ch is not None and active_ch["id"] == chosen_chapter["id"]
+                q_count_total = len(db.get_questions(chosen_chapter["id"]))
+                is_running = cfg["is_active"]
+                q_to_use = min(cfg.get("question_count") or q_count_total, q_count_total)
 
                 if is_running:
                     st.markdown(
                         f"<div class='subject-meta'>সময়: {cfg['duration_minutes']} মিনিট &nbsp;•&nbsp; "
-                        f"মোট প্রশ্ন: {q_count} &nbsp;•&nbsp; "
-                        f"পূর্ণমান: {q_count * cfg['marks_per_question']}</div>",
+                        f"প্রশ্ন সংখ্যা: {q_to_use} &nbsp;•&nbsp; "
+                        f"পূর্ণমান: {q_to_use * cfg['marks_per_question']}</div>",
                         unsafe_allow_html=True
                     )
                     if st.button("🚀 পরীক্ষা শুরু করো", key=f"start_{subj['id']}", type="primary"):
+                        all_questions = db.get_questions(chosen_chapter["id"])
+                        if q_to_use < len(all_questions):
+                            selected_questions = random.sample(all_questions, q_to_use)
+                        else:
+                            selected_questions = all_questions
                         st.session_state.exam_chapter_id = chosen_chapter["id"]
-                        st.session_state.exam_questions = db.get_questions(chosen_chapter["id"])
+                        st.session_state.exam_questions = selected_questions
                         st.session_state.exam_cfg = cfg
                         st.session_state.exam_chapter_info = chosen_chapter
                         st.session_state.exam_subject_name = subj["name"]
