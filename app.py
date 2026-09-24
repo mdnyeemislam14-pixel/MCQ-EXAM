@@ -239,6 +239,7 @@ defaults = {
     "exam_questions": None,
     "exam_cfg": None,
     "exam_chapter_info": None,
+    "exam_subject_name": None,
     "exam_start_time": None,
     "exam_answers": {},
     "exam_submitted_result": None,
@@ -251,7 +252,7 @@ for k, v in defaults.items():
 
 def go_home():
     for key in ["student_registered", "exam_chapter_id", "exam_questions",
-                "exam_cfg", "exam_chapter_info", "confirm_submit_pending",
+                "exam_cfg", "exam_chapter_info", "exam_subject_name", "confirm_submit_pending",
                 "exam_start_time", "exam_answers", "exam_submitted_result"]:
         st.session_state[key] = defaults[key]
 
@@ -645,6 +646,7 @@ def subject_selection():
                         st.session_state.exam_questions = db.get_questions(chosen_chapter["id"])
                         st.session_state.exam_cfg = cfg
                         st.session_state.exam_chapter_info = chosen_chapter
+                        st.session_state.exam_subject_name = subj["name"]
                         st.session_state.exam_start_time = time.time()
                         st.session_state.exam_answers = {}
                         st.session_state.exam_submitted_result = None
@@ -660,8 +662,7 @@ def grade_and_submit():
 
     cfg = st.session_state.exam_cfg
     chapter = st.session_state.exam_chapter_info
-    subject = db.get_subjects()
-    subject_name = next((s["name"] for s in subject if s["id"] == chapter["subject_id"]), "")
+    subject_name = st.session_state.exam_subject_name
 
     correct_count = wrong_count = unanswered_count = 0
     detail = []
