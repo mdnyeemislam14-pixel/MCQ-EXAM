@@ -204,12 +204,13 @@ def get_exam_config(chapter_id):
     return res.data[0]
 
 
-def update_exam_config(chapter_id, duration_minutes, marks_per_question, negative_marks=0):
+def update_exam_config(chapter_id, duration_minutes, marks_per_question, negative_marks=0, question_count=None):
     supabase.table("exam_config").update(
         {
             "duration_minutes": duration_minutes,
             "marks_per_question": marks_per_question,
             "negative_marks": negative_marks,
+            "question_count": question_count,
             "updated_at": bd_now_iso(),
         }
     ).eq("chapter_id", chapter_id).execute()
@@ -217,18 +218,8 @@ def update_exam_config(chapter_id, duration_minutes, marks_per_question, negativ
 
 
 def set_exam_active(chapter_id, active):
-    """একটি অধ্যায়ের পরীক্ষা চালু করলে একই বিষয়ের অন্য সব অধ্যায়ের পরীক্ষা বন্ধ হয়ে যাবে
-    (একসাথে একটির বেশি পরীক্ষা 'চলছে' দেখানো হবে না, বিভ্রান্তি এড়াতে)।"""
-    if active:
-        chapter = get_chapter(chapter_id)
-        if chapter:
-            siblings = get_chapters(chapter["subject_id"])
-            sibling_ids = [c["id"] for c in siblings]
-            if sibling_ids:
-                supabase.table("exam_config").update({"is_active": False}).in_(
-                    "chapter_id", sibling_ids
-                ).execute()
-
+    """এখন একই সময়ে একাধিক অধ্যায়ের পরীক্ষা আলাদাভাবে চালু রাখা যাবে —
+    একটা চালু করলে অন্যগুলো আর বন্ধ হয়ে যাবে না।"""
     supabase.table("exam_config").update(
         {"is_active": bool(active), "updated_at": bd_now_iso()}
     ).eq("chapter_id", chapter_id).execute()
