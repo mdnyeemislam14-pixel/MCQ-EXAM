@@ -133,7 +133,7 @@ def get_question(question_id):
     return res.data[0] if res.data else None
 
 
-def add_question(chapter_id, question_text, ka, kha, ga, gha, correct_option):
+def add_question(chapter_id, question_text, ka, kha, ga, gha, correct_option, image_url=None):
     supabase.table("questions").insert(
         {
             "chapter_id": chapter_id,
@@ -143,6 +143,7 @@ def add_question(chapter_id, question_text, ka, kha, ga, gha, correct_option):
             "option_ga": ga.strip(),
             "option_gha": gha.strip(),
             "correct_option": correct_option.strip(),
+            "image_url": (image_url or "").strip() or None,
             "created_at": bd_now_iso(),
         }
     ).execute()
@@ -170,7 +171,7 @@ def add_questions_bulk(chapter_id, parsed_questions):
         get_questions.clear()
 
 
-def update_question(question_id, question_text, ka, kha, ga, gha, correct_option):
+def update_question(question_id, question_text, ka, kha, ga, gha, correct_option, image_url=None):
     supabase.table("questions").update(
         {
             "question_text": question_text.strip(),
@@ -179,6 +180,7 @@ def update_question(question_id, question_text, ka, kha, ga, gha, correct_option
             "option_ga": ga.strip(),
             "option_gha": gha.strip(),
             "correct_option": correct_option.strip(),
+            "image_url": (image_url or "").strip() or None,
         }
     ).eq("id", question_id).execute()
     get_questions.clear()
