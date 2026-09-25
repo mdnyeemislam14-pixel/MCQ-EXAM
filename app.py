@@ -81,12 +81,24 @@ html, body, [class*="css"] { font-family: 'Hind Siliguri', sans-serif; }
 .stApp { background: var(--cream); }
 .block-container { padding-top: 1.6rem; max-width: 900px; }
 
+/* ---------- বর্ডারড কার্ডে হালকা shadow (বিষয় কার্ড, প্রশ্ন কার্ড) ---------- */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    box-shadow: 0 2px 8px rgba(35,48,43,0.06);
+    border-radius: 12px;
+    transition: box-shadow 0.2s ease;
+}
+div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    box-shadow: 0 4px 14px rgba(35,48,43,0.10);
+}
+
 /* ---------- হেডার ব্যানার ---------- */
 .app-header {
-    background: var(--ink);
+    background: linear-gradient(135deg, #1D3F33 0%, #163329 100%);
     background-image:
+        linear-gradient(135deg, #1D3F33 0%, #163329 100%),
         repeating-linear-gradient(0deg, rgba(255,255,255,0.035) 0px, rgba(255,255,255,0.035) 1px, transparent 1px, transparent 28px),
         repeating-linear-gradient(90deg, rgba(255,255,255,0.035) 0px, rgba(255,255,255,0.035) 1px, transparent 1px, transparent 28px);
+    box-shadow: 0 4px 14px rgba(29,63,51,0.18);
     border-radius: 16px;
     padding: 22px 28px;
     margin-bottom: 28px;
@@ -749,14 +761,18 @@ def exam_taking():
     progress_pct = int((answered_count / total_count) * 100) if total_count else 0
 
     mins, secs = divmod(remaining, 60)
-    timer_class = "timer-box timer-warning" if remaining <= 60 else "timer-box"
+    subj_color = subject_style(st.session_state.exam_subject_name)["color"]
+    if remaining <= 60:
+        timer_style = "background:#A23B2E;"
+    else:
+        timer_style = f"background:{subj_color};"
 
     c1, c2 = st.columns([3, 1])
     with c1:
         chapter = st.session_state.exam_chapter_info
         st.markdown(f"#### 📝 {chapter['name']} — পরীক্ষা চলছে")
     with c2:
-        st.markdown(f"<div class='{timer_class}'>⏱️ {mins:02d}:{secs:02d}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='timer-box' style='{timer_style}'>⏱️ {mins:02d}:{secs:02d}</div>", unsafe_allow_html=True)
 
     st.markdown(
         f"<div class='subject-meta' style='margin-top:4px;'>উত্তর দেওয়া হয়েছে: "
@@ -837,8 +853,10 @@ def exam_result():
         f'<div class="big-title">🎉 অভিনন্দন, {st.session_state.student_name}!</div>',
         unsafe_allow_html=True
     )
+    style = subject_style(r["subject_name"])
     st.markdown(
-        f'<div class="subject-meta" style="margin-top:-6px; margin-bottom:14px;">'
+        f'<div class="subject-meta" style="margin-top:-6px; margin-bottom:14px; display:flex; align-items:center; gap:8px;">'
+        f'<span class="subject-icon-badge" style="background:{style["soft"]}; font-size:16px; width:28px; height:28px;">{style["icon"]}</span>'
         f'{r["subject_name"]} — {r["chapter_name"]} পরীক্ষার ফলাফল</div>',
         unsafe_allow_html=True
     )
