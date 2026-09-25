@@ -453,6 +453,10 @@ def admin_panel():
                             index=["ক", "খ", "গ", "ঘ"].index(q["correct_option"]),
                             key=f"ans_{q['id']}"
                         )
+                        img_url = st.text_input(
+                            "ছবি/গ্রাফের লিংক (ঐচ্ছিক)", value=q.get("image_url") or "",
+                            key=f"img_{q['id']}", placeholder="https://i.ibb.co/..."
+                        )
                         colA, colB = st.columns(2)
                         with colA:
                             save = st.form_submit_button("💾 সংরক্ষণ করুন")
@@ -460,7 +464,7 @@ def admin_panel():
                             delete = st.form_submit_button("🗑️ মুছে ফেলুন")
 
                         if save:
-                            db.update_question(q["id"], qt, ka, kha, ga, gha, ans)
+                            db.update_question(q["id"], qt, ka, kha, ga, gha, ans, img_url)
                             st.success("সংরক্ষণ হয়েছে।")
                             st.rerun()
                         if delete:
@@ -710,6 +714,7 @@ def grade_and_submit():
 
         detail.append({
             "question": q["question_text"],
+            "image_url": q.get("image_url"),
             "options": {"ক": q["option_ka"], "খ": q["option_kha"], "গ": q["option_ga"], "ঘ": q["option_gha"]},
             "given": given,
             "correct": q["correct_option"],
@@ -789,6 +794,8 @@ def exam_taking():
                 f"<span class='q-text'>{q['question_text']}</span>",
                 unsafe_allow_html=True
             )
+            if q.get("image_url"):
+                st.image(q["image_url"], use_container_width=False, width=380)
             options = {"ক": q["option_ka"], "খ": q["option_kha"], "গ": q["option_ga"], "ঘ": q["option_gha"]}
             already_answered = str(q["id"]) in st.session_state.exam_answers
 
@@ -893,6 +900,8 @@ def exam_result():
             tag = "⚪ অনুত্তরিত"
 
         rows = f"<div class='{css}'><b>{idx}. {d['question']}</b> — {tag}<br>"
+        if d.get("image_url"):
+            rows += f"<img src='{d['image_url']}' style='max-width:320px; border-radius:8px; margin:8px 0;' /><br>"
         for label, text in d["options"].items():
             marker = ""
             if label == d["correct"]:
