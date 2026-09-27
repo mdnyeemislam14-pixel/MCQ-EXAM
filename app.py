@@ -3,43 +3,15 @@
 app.py — অনলাইন MCQ পরীক্ষা প্ল্যাটফর্ম
 বিষয়: জীববিজ্ঞান, পদার্থবিজ্ঞান, রসায়ন
 """
-
 import time
-import random
 import datetime
 import pandas as pd
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
-
 import db
 from question_parser import parse_questions
 
 ADMIN_PASSWORD = "098765"
-ADMIN_NAME = "মো: নাঈম ইসলাম"
-ADMIN_DESIGNATION = "সহকারী শিক্ষক"
-
-BN_DIGITS = str.maketrans("0123456789", "০১২৩৪৫৬৭৮৯")
-BN_MONTHS = {
-    1: "জানুয়ারি", 2: "ফেব্রুয়ারি", 3: "মার্চ", 4: "এপ্রিল", 5: "মে", 6: "জুন",
-    7: "জুলাই", 8: "আগস্ট", 9: "সেপ্টেম্বর", 10: "অক্টোবর", 11: "নভেম্বর", 12: "ডিসেম্বর",
-}
-
-
-def format_bn_datetime(iso_str):
-    """ISO টাইমস্ট্যাম্পকে '২৩ সেপ্টেম্বর ২০২৬, দুপুর ০২:৩৫' আকারে ফরম্যাট করে (১২-ঘণ্টা)"""
-    if not iso_str:
-        return ""
-    try:
-        dt = datetime.datetime.fromisoformat(iso_str)
-    except ValueError:
-        return iso_str
-    hour12 = dt.strftime("%I:%M")
-    ampm = "দুপুর" if 12 <= dt.hour < 18 else ("বিকাল" if dt.hour >= 18 and dt.hour < 20 else
-           ("রাত" if dt.hour >= 20 or dt.hour < 4 else ("ভোর" if dt.hour < 6 else "সকাল")))
-    day = str(dt.day).translate(BN_DIGITS)
-    year = str(dt.year).translate(BN_DIGITS)
-    time_bn = hour12.translate(BN_DIGITS)
-    return f"{day} {BN_MONTHS[dt.month]} {year}, {ampm} {time_bn}"
 
 st.set_page_config(page_title="অনলাইন এম.সি.কিউ প্ল্যাটফর্ম", page_icon="📝", layout="wide")
 
@@ -55,10 +27,8 @@ SUBJECT_STYLE = {
 }
 DEFAULT_SUBJECT_STYLE = {"color": "#5B6B63", "soft": "#F1F1EC", "icon": "📘"}
 
-
 def subject_style(name):
     return SUBJECT_STYLE.get(name, DEFAULT_SUBJECT_STYLE)
-
 
 # ---------------------------------------------------------------------------
 # স্টাইল — কাগজ-খাতা ও চকবোর্ডের অনুপ্রেরণায় ডিজাইন
@@ -66,9 +36,7 @@ def subject_style(name):
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Tiro+Bangla&family=Hind+Siliguri:wght@400;500;600;700&display=swap');
-
 html, body, [class*="css"] { font-family: 'Hind Siliguri', sans-serif; }
-
 :root {
     --ink: #1D3F33;
     --cream: #FBF8F1;
@@ -77,28 +45,15 @@ html, body, [class*="css"] { font-family: 'Hind Siliguri', sans-serif; }
     --text-muted: #6B7A72;
     --border: #E4E0D4;
 }
-
 .stApp { background: var(--cream); }
 .block-container { padding-top: 1.6rem; max-width: 900px; }
 
-/* ---------- বর্ডারড কার্ডে হালকা shadow (বিষয় কার্ড, প্রশ্ন কার্ড) ---------- */
-div[data-testid="stVerticalBlockBorderWrapper"] {
-    box-shadow: 0 2px 8px rgba(35,48,43,0.06);
-    border-radius: 12px;
-    transition: box-shadow 0.2s ease;
-}
-div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-    box-shadow: 0 4px 14px rgba(35,48,43,0.10);
-}
-
 /* ---------- হেডার ব্যানার ---------- */
 .app-header {
-    background: linear-gradient(135deg, #1D3F33 0%, #163329 100%);
+    background: var(--ink);
     background-image:
-        linear-gradient(135deg, #1D3F33 0%, #163329 100%),
         repeating-linear-gradient(0deg, rgba(255,255,255,0.035) 0px, rgba(255,255,255,0.035) 1px, transparent 1px, transparent 28px),
         repeating-linear-gradient(90deg, rgba(255,255,255,0.035) 0px, rgba(255,255,255,0.035) 1px, transparent 1px, transparent 28px);
-    box-shadow: 0 4px 14px rgba(29,63,51,0.18);
     border-radius: 16px;
     padding: 22px 28px;
     margin-bottom: 28px;
@@ -169,6 +124,16 @@ div[data-testid="stVerticalBlockBorderWrapper"]:hover {
 }
 .subject-meta { color: var(--text-muted); font-size: 13px; margin: 6px 0 10px 0; }
 
+/* ---------- অধ্যায় চিপ (নতুন) ---------- */
+.chapter-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px 0; }
+.chapter-chip {
+    font-size: 12.5px; font-weight: 500;
+    padding: 4px 10px; border-radius: 14px;
+    background: #EAF6EF; color: #1F7A45;
+    border: 1px solid #CBE8D5;
+}
+.chapter-chip b { font-weight: 600; }
+
 /* ---------- টাইমার ---------- */
 .timer-box {
     background: var(--ink); color: #F7F4EA; padding: 10px 22px; border-radius: 10px;
@@ -226,7 +191,6 @@ div[data-testid="stVerticalBlockBorderWrapper"]:hover {
 </style>
 """, unsafe_allow_html=True)
 
-
 def render_header():
     st.markdown("""
     <div class="app-header">
@@ -237,7 +201,6 @@ def render_header():
         </div>
     </div>
     """, unsafe_allow_html=True)
-
 
 # ---------------------------------------------------------------------------
 # সেশন স্টেট ইনিশিয়ালাইজ
@@ -250,25 +213,18 @@ defaults = {
     "student_registered": False,
     "exam_chapter_id": None,
     "exam_questions": None,
-    "exam_cfg": None,
-    "exam_chapter_info": None,
-    "exam_subject_name": None,
     "exam_start_time": None,
     "exam_answers": {},
     "exam_submitted_result": None,
-    "confirm_submit_pending": False,
 }
 for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-
 def go_home():
     for key in ["student_registered", "exam_chapter_id", "exam_questions",
-                "exam_cfg", "exam_chapter_info", "exam_subject_name", "confirm_submit_pending",
                 "exam_start_time", "exam_answers", "exam_submitted_result"]:
         st.session_state[key] = defaults[key]
-
 
 # ---------------------------------------------------------------------------
 # সাইডবার — ভূমিকা নির্বাচন
@@ -277,12 +233,10 @@ with st.sidebar:
     st.markdown("### 📝 MCQ পরীক্ষা প্ল্যাটফর্ম")
     mode = st.radio("প্রবেশ করুন", ["শিক্ষার্থী", "এডমিন"], index=0)
     st.session_state.role = "admin" if mode == "এডমিন" else "student"
-
     if st.session_state.role == "admin" and st.session_state.admin_authenticated:
         if st.button("🔒 লগআউট"):
             st.session_state.admin_authenticated = False
             st.rerun()
-
 
 # ===========================================================================
 # এডমিন প্যানেল
@@ -300,14 +254,11 @@ def admin_login():
             else:
                 st.error("ভুল পাসওয়ার্ড। আবার চেষ্টা করুন।")
 
-
 def admin_panel():
     render_header()
     st.markdown('<div class="big-title">⚙️ এডমিন প্যানেল</div>', unsafe_allow_html=True)
-
     tabs = st.tabs(["📊 ড্যাশবোর্ড", "📚 অধ্যায় ব্যবস্থাপনা", "➕ প্রশ্ন যোগ/এডিট",
-                     "⏱️ পরীক্ষা সেটিংস", "🏆 ফলাফল ও মেধাতালিকা"])
-
+                    "⏱️ পরীক্ষা সেটিংস", "🏆 ফলাফল ও মেধাতালিকা"])
     subjects = db.get_subjects()
     subject_names = [s["name"] for s in subjects]
 
@@ -315,7 +266,6 @@ def admin_panel():
     with tabs[0]:
         st.subheader("সার্বিক পরিসংখ্যান")
         all_subs = db.get_all_submissions()
-
         col1, col2, col3 = st.columns(3)
         col1.metric("মোট বিষয়", len(subjects))
         total_chapters = sum(len(db.get_chapters(s["id"])) for s in subjects)
@@ -325,17 +275,16 @@ def admin_panel():
         st.markdown("#### চলমান পরীক্ষা")
         running_any = False
         for s in subjects:
-            for ch in db.get_chapters(s["id"]):
-                cfg = db.get_exam_config(ch["id"])
-                if cfg["is_active"]:
-                    running_any = True
-                    qc = cfg.get("question_count") or "সবগুলো"
-                    st.markdown(
-                        f"- **{s['name']}** → *{ch['name']}* "
-                        f"(সময়: {cfg['duration_minutes']} মিনিট, প্রশ্ন: {qc}, প্রতি প্রশ্নে মার্ক: {cfg['marks_per_question']}) "
-                        f"<span class='exam-running'>● পরীক্ষা চলছে</span>",
-                        unsafe_allow_html=True
-                    )
+            active_ch = db.get_active_chapter_for_subject(s["id"])
+            if active_ch:
+                running_any = True
+                cfg = db.get_exam_config(active_ch["id"])
+                st.markdown(
+                    f"- **{s['name']}** → *{active_ch['name']}* "
+                    f"(সময়: {cfg['duration_minutes']} মিনিট, প্রতি প্রশ্নে মার্ক: {cfg['marks_per_question']}) "
+                    f"<span class='exam-running'>● পরীক্ষা চলছে</span>",
+                    unsafe_allow_html=True
+                )
         if not running_any:
             st.caption("এই মুহূর্তে কোনো পরীক্ষা চলছে না।")
 
@@ -344,7 +293,6 @@ def admin_panel():
             df = pd.DataFrame(all_subs)[
                 ["student_name", "student_class", "subject_name", "chapter_name", "score", "total_marks", "submitted_at"]
             ]
-            df["submitted_at"] = df["submitted_at"].apply(format_bn_datetime)
             df.columns = ["নাম", "শ্রেণি", "বিষয়", "অধ্যায়", "প্রাপ্ত নম্বর", "পূর্ণমান", "জমার সময়"]
             st.dataframe(df.head(20), use_container_width=True, hide_index=True)
 
@@ -369,7 +317,6 @@ def admin_panel():
         chapters = db.get_chapters(subj["id"])
         if not chapters:
             st.info("এখনো কোনো অধ্যায় যোগ করা হয়নি।")
-
         for ch in chapters:
             q_count = len(db.get_questions(ch["id"]))
             c1, c2, c3, c4 = st.columns([4, 2, 1, 1])
@@ -416,7 +363,6 @@ def admin_panel():
                     "ক) হৃদপিণ্ড\nখ) যকৃত\nগ) ত্বক\nঘ) মস্তিষ্ক\nউত্তর: গ",
                     language=None
                 )
-
             bulk_text = st.text_area("এখানে পেস্ট করুন", height=250, key="bulk_paste_area")
             if st.button("🔍 যাচাই ও যোগ করুন", key="parse_add_btn"):
                 if not bulk_text.strip():
@@ -436,7 +382,6 @@ def admin_panel():
             st.markdown(f"##### ✏️ '{ch_choice}' অধ্যায়ের প্রশ্নসমূহ")
             questions = db.get_questions(chapter_id2)
             st.caption(f"মোট প্রশ্ন: {len(questions)}")
-
             for q in questions:
                 with st.expander(f"প্রশ্ন #{q['id']}: {q['question_text'][:60]}"):
                     with st.form(f"edit_q_{q['id']}"):
@@ -453,18 +398,13 @@ def admin_panel():
                             index=["ক", "খ", "গ", "ঘ"].index(q["correct_option"]),
                             key=f"ans_{q['id']}"
                         )
-                        img_url = st.text_input(
-                            "ছবি/গ্রাফের লিংক (ঐচ্ছিক)", value=q.get("image_url") or "",
-                            key=f"img_{q['id']}", placeholder="https://i.ibb.co/..."
-                        )
                         colA, colB = st.columns(2)
                         with colA:
                             save = st.form_submit_button("💾 সংরক্ষণ করুন")
                         with colB:
                             delete = st.form_submit_button("🗑️ মুছে ফেলুন")
-
                         if save:
-                            db.update_question(q["id"], qt, ka, kha, ga, gha, ans, img_url)
+                            db.update_question(q["id"], qt, ka, kha, ga, gha, ans)
                             st.success("সংরক্ষণ হয়েছে।")
                             st.rerun()
                         if delete:
@@ -497,19 +437,9 @@ def admin_panel():
                                          value=float(cfg["marks_per_question"]), step=0.25)
                 neg = st.number_input("ভুল উত্তরে নেগেটিভ মার্ক (ঐচ্ছিক, ০ দিলে নেই)", min_value=0.0,
                                        max_value=10.0, value=float(cfg["negative_marks"]), step=0.25)
-                if q_count3 > 0:
-                    default_qc = cfg.get("question_count") or q_count3
-                    default_qc = min(default_qc, q_count3)
-                    q_to_use = st.number_input(
-                        f"পরীক্ষায় কতটা প্রশ্ন ব্যবহার হবে (মোট আছে {q_count3}টি)",
-                        min_value=1, max_value=q_count3, value=default_qc,
-                    )
-                    st.caption("প্রশ্নভাণ্ডার থেকে এলোমেলোভাবে এই সংখ্যক প্রশ্ন বেছে পরীক্ষা নেওয়া হবে।")
-                else:
-                    q_to_use = None
                 save_cfg = st.form_submit_button("💾 সেটিংস সংরক্ষণ করুন")
                 if save_cfg:
-                    db.update_exam_config(chapter_id3, int(duration), marks, neg, q_to_use)
+                    db.update_exam_config(chapter_id3, int(duration), marks, neg)
                     st.success("সেটিংস সংরক্ষণ হয়েছে।")
                     st.rerun()
 
@@ -563,15 +493,13 @@ def admin_panel():
                         "ভুল": s["wrong_count"],
                         "অনুত্তরিত": s["unanswered_count"],
                         "সময় লেগেছে": f"{mins}মি {secs}সে",
-                        "জমার সময়": format_bn_datetime(s["submitted_at"]),
+                        "জমার সময়": s["submitted_at"][:16].replace("T", " "),
                     })
                 df = pd.DataFrame(rows)
                 st.dataframe(df, use_container_width=True, hide_index=True)
-
                 csv = df.to_csv(index=False).encode("utf-8-sig")
                 st.download_button("⬇️ CSV ডাউনলোড করুন", csv,
                                     file_name=f"merit_list_{ch_choice4}.csv", mime="text/csv")
-
 
 # ===========================================================================
 # শিক্ষার্থী পোর্টাল
@@ -580,7 +508,6 @@ def student_registration():
     render_header()
     st.markdown('<div class="big-title">পরীক্ষায় স্বাগতম</div>', unsafe_allow_html=True)
     st.write("পরীক্ষা শুরু করার আগে নিচে আপনার তথ্য দিন।")
-
     with st.form("student_reg_form"):
         name = st.text_input("তোমার নাম")
         cls = st.text_input("তোমার শ্রেণি (যেমনঃ নবম, দশম)")
@@ -594,13 +521,6 @@ def student_registration():
             else:
                 st.warning("নাম ও শ্রেণি দুটোই লিখুন।")
 
-    st.markdown(
-        f"<div style='text-align:center; margin-top:60px; color:#B8B2A2; font-size:12.5px;'>"
-        f"{ADMIN_NAME}<br>{ADMIN_DESIGNATION}</div>",
-        unsafe_allow_html=True
-    )
-
-
 def subject_selection():
     render_header()
     st.markdown(
@@ -608,11 +528,11 @@ def subject_selection():
         f'({st.session_state.student_class})</div>',
         unsafe_allow_html=True
     )
-    st.write("নিচে থেকে বিষয় ও অধ্যায় নির্বাচন করে পরীক্ষা শুরু করো।")
+    st.write("নিচে থেকে বিষয় বাছাই করে যে অধ্যায়ে পরীক্ষা চলছে সেটিতে ক্লিক করে পরীক্ষা শুরু করো।")
 
-    with st.spinner("লোড হচ্ছে..."):
-        subjects = db.get_subjects()
+    subjects = db.get_subjects()
 
+    # প্রতিটি বিষয় কার্ডের উপরে তার নিজস্ব রঙের পটি বসানো (গতিশীলভাবে তৈরি CSS)
     dynamic_css = "<style>"
     for subj in subjects:
         style = subject_style(subj["name"])
@@ -627,8 +547,7 @@ def subject_selection():
         style = subject_style(subj["name"])
         with col:
             with st.container(border=True, key=f"subject_card_{subj['id']}"):
-                chapters = db.get_chapters(subj["id"])
-                any_running = any(db.get_exam_config(c["id"])["is_active"] for c in chapters) if chapters else False
+                active_ch = db.get_active_chapter_for_subject(subj["id"])
 
                 st.markdown(
                     f"<div class='subject-card-head'>"
@@ -638,65 +557,47 @@ def subject_selection():
                     unsafe_allow_html=True
                 )
 
-                if any_running:
+                if active_ch:
+                    # dropdown সরিয়ে সরাসরি চলমান অধ্যায়টিকে ছোট চিপ আকারে দেখানো
                     st.markdown(
-                        "<div class='status-pill status-running'>"
-                        "<span class='pulse-dot'></span> পরীক্ষা চলছে</div>",
-                        unsafe_allow_html=True
-                    )
-                else:
-                    st.markdown(
-                        "<div class='status-pill status-idle'>কোনো পরীক্ষা চলছে না</div>",
+                        f"<div class='chapter-chip-row'>"
+                        f"<span class='chapter-chip'><b>{active_ch['name']}</b> (পরীক্ষা চলছে)</span>"
+                        f"</div>",
                         unsafe_allow_html=True
                     )
 
-                if not chapters:
-                    st.caption("এখনো কোনো অধ্যায় নেই।")
-                    continue
+                    cfg = db.get_exam_config(active_ch["id"])
+                    q_count = len(db.get_questions(active_ch["id"]))
 
-                chapter_names = [c["name"] for c in chapters]
-                chosen = st.selectbox("অধ্যায় নির্বাচন করো", chapter_names, key=f"select_ch_{subj['id']}")
-                chosen_chapter = next(c for c in chapters if c["name"] == chosen)
-
-                cfg = db.get_exam_config(chosen_chapter["id"])
-                q_count_total = len(db.get_questions(chosen_chapter["id"]))
-                is_running = cfg["is_active"]
-                q_to_use = min(cfg.get("question_count") or q_count_total, q_count_total)
-
-                if is_running:
                     st.markdown(
                         f"<div class='subject-meta'>সময়: {cfg['duration_minutes']} মিনিট &nbsp;•&nbsp; "
-                        f"প্রশ্ন সংখ্যা: {q_to_use} &nbsp;•&nbsp; "
-                        f"পূর্ণমান: {q_to_use * cfg['marks_per_question']}</div>",
+                        f"মোট প্রশ্ন: {q_count} &nbsp;•&nbsp; "
+                        f"পূর্ণমান: {q_count * cfg['marks_per_question']}</div>",
                         unsafe_allow_html=True
                     )
+
                     if st.button("🚀 পরীক্ষা শুরু করো", key=f"start_{subj['id']}", type="primary"):
-                        all_questions = db.get_questions(chosen_chapter["id"])
-                        if q_to_use < len(all_questions):
-                            selected_questions = random.sample(all_questions, q_to_use)
-                        else:
-                            selected_questions = all_questions
-                        st.session_state.exam_chapter_id = chosen_chapter["id"]
-                        st.session_state.exam_questions = selected_questions
-                        st.session_state.exam_cfg = cfg
-                        st.session_state.exam_chapter_info = chosen_chapter
-                        st.session_state.exam_subject_name = subj["name"]
+                        st.session_state.exam_chapter_id = active_ch["id"]
+                        st.session_state.exam_questions = db.get_questions(active_ch["id"])
                         st.session_state.exam_start_time = time.time()
                         st.session_state.exam_answers = {}
                         st.session_state.exam_submitted_result = None
                         st.rerun()
                 else:
-                    st.caption("এই অধ্যায়ে এখন পরীক্ষা চালু নেই।")
-
+                    st.markdown(
+                        "<div class='status-pill status-idle'>কোনো পরীক্ষা চলছে না</div>",
+                        unsafe_allow_html=True
+                    )
+                    st.caption("এই মুহূর্তে এই বিষয়ে কোনো অধ্যায়ে পরীক্ষা চালু নেই।")
 
 def grade_and_submit():
     chapter_id = st.session_state.exam_chapter_id
     questions = st.session_state.exam_questions
     answers = st.session_state.exam_answers
-
-    cfg = st.session_state.exam_cfg
-    chapter = st.session_state.exam_chapter_info
-    subject_name = st.session_state.exam_subject_name
+    cfg = db.get_exam_config(chapter_id)
+    chapter = db.get_chapter(chapter_id)
+    subject = db.get_subjects()
+    subject_name = next((s["name"] for s in subject if s["id"] == chapter["subject_id"]), "")
 
     correct_count = wrong_count = unanswered_count = 0
     detail = []
@@ -711,10 +612,8 @@ def grade_and_submit():
         else:
             wrong_count += 1
             is_correct = False
-
         detail.append({
             "question": q["question_text"],
-            "image_url": q.get("image_url"),
             "options": {"ক": q["option_ka"], "খ": q["option_kha"], "গ": q["option_ga"], "ঘ": q["option_gha"]},
             "given": given,
             "correct": q["correct_option"],
@@ -741,20 +640,14 @@ def grade_and_submit():
     st.session_state.exam_questions = None
     st.session_state.exam_chapter_id = None
 
-
 def exam_taking():
-    cfg = st.session_state.exam_cfg
+    cfg = db.get_exam_config(st.session_state.exam_chapter_id)
     duration_seconds = cfg["duration_minutes"] * 60
     elapsed = time.time() - st.session_state.exam_start_time
     remaining = int(duration_seconds - elapsed)
 
     if remaining <= 0:
-        try:
-            grade_and_submit()
-        except Exception as e:
-            st.error("⚠️ সময় শেষে অটো-সাবমিট করতে সমস্যা হয়েছে। নিচের এররটি স্ক্রিনশট নিয়ে জানান:")
-            st.exception(e)
-            st.stop()
+        grade_and_submit()
         st.rerun()
         return
 
@@ -766,18 +659,14 @@ def exam_taking():
     progress_pct = int((answered_count / total_count) * 100) if total_count else 0
 
     mins, secs = divmod(remaining, 60)
-    subj_color = subject_style(st.session_state.exam_subject_name)["color"]
-    if remaining <= 60:
-        timer_style = "background:#A23B2E;"
-    else:
-        timer_style = f"background:{subj_color};"
+    timer_class = "timer-box timer-warning" if remaining <= 60 else "timer-box"
 
     c1, c2 = st.columns([3, 1])
     with c1:
-        chapter = st.session_state.exam_chapter_info
+        chapter = db.get_chapter(st.session_state.exam_chapter_id)
         st.markdown(f"#### 📝 {chapter['name']} — পরীক্ষা চলছে")
     with c2:
-        st.markdown(f"<div class='timer-box' style='{timer_style}'>⏱️ {mins:02d}:{secs:02d}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='{timer_class}'>⏱️ {mins:02d}:{secs:02d}</div>", unsafe_allow_html=True)
 
     st.markdown(
         f"<div class='subject-meta' style='margin-top:4px;'>উত্তর দেওয়া হয়েছে: "
@@ -794,8 +683,6 @@ def exam_taking():
                 f"<span class='q-text'>{q['question_text']}</span>",
                 unsafe_allow_html=True
             )
-            if q.get("image_url"):
-                st.image(q["image_url"], use_container_width=False, width=380)
             options = {"ক": q["option_ka"], "খ": q["option_kha"], "গ": q["option_ga"], "ঘ": q["option_gha"]}
             already_answered = str(q["id"]) in st.session_state.exam_answers
 
@@ -826,47 +713,14 @@ def exam_taking():
             st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
     st.markdown("---")
-    if not st.session_state.confirm_submit_pending:
-        if st.button("✅ পরীক্ষা জমা দাও (Submit)", type="primary"):
-            st.session_state.confirm_submit_pending = True
-            st.rerun()
-    else:
-        st.warning("আপনি কি সত্যিই পরীক্ষা জমা দিতে চান? জমা দেওয়ার পর আর উত্তর পরিবর্তন করা যাবে না।")
-        cyes, cno = st.columns(2)
-        with cyes:
-            if st.button("✅ হ্যাঁ, জমা দাও", type="primary", key="confirm_submit_yes"):
-                st.session_state.confirm_submit_pending = False
-                with st.spinner("জমা হচ্ছে..."):
-                    try:
-                        grade_and_submit()
-                    except Exception as e:
-                        st.error("⚠️ সাবমিট করতে সমস্যা হয়েছে। নিচের এররটি স্ক্রিনশট নিয়ে জানান:")
-                        st.exception(e)
-                        st.stop()
-                st.rerun()
-        with cno:
-            if st.button("❌ না, ফিরে যাও", key="confirm_submit_no"):
-                st.session_state.confirm_submit_pending = False
-                st.rerun()
-
+    if st.button("✅ পরীক্ষা জমা দাও (Submit)", type="primary"):
+        grade_and_submit()
+        st.rerun()
 
 def exam_result():
     r = st.session_state.exam_submitted_result
-    if st.button("🏠 হোমে ফিরে যান", key="home_top_btn"):
-        go_home()
-        st.rerun()
     render_header()
-    st.markdown(
-        f'<div class="big-title">🎉 অভিনন্দন, {st.session_state.student_name}!</div>',
-        unsafe_allow_html=True
-    )
-    style = subject_style(r["subject_name"])
-    st.markdown(
-        f'<div class="subject-meta" style="margin-top:-6px; margin-bottom:14px; display:flex; align-items:center; gap:8px;">'
-        f'<span class="subject-icon-badge" style="background:{style["soft"]}; font-size:16px; width:28px; height:28px;">{style["icon"]}</span>'
-        f'{r["subject_name"]} — {r["chapter_name"]} পরীক্ষার ফলাফল</div>',
-        unsafe_allow_html=True
-    )
+    st.markdown(f'<div class="big-title">ফলাফল — {r["chapter_name"]}</div>', unsafe_allow_html=True)
 
     pct = round((r["score"] / r["total_marks"]) * 100, 1) if r["total_marks"] else 0
     score_class = "score-good" if pct >= 80 else ("score-mid" if pct >= 50 else "score-low")
@@ -900,8 +754,6 @@ def exam_result():
             tag = "⚪ অনুত্তরিত"
 
         rows = f"<div class='{css}'><b>{idx}. {d['question']}</b> — {tag}<br>"
-        if d.get("image_url"):
-            rows += f"<img src='{d['image_url']}' style='max-width:320px; border-radius:8px; margin:8px 0;' /><br>"
         for label, text in d["options"].items():
             marker = ""
             if label == d["correct"]:
@@ -917,7 +769,6 @@ def exam_result():
     if st.button("🏠 হোমপেজে ফিরে যাও"):
         go_home()
         st.rerun()
-
 
 # ===========================================================================
 # রাউটিং
