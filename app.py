@@ -275,8 +275,8 @@ def admin_panel():
         st.markdown("#### চলমান পরীক্ষা")
         running_any = False
         for s in subjects:
-            active_ch = db.get_active_chapter_for_subject(s["id"])
-            if active_ch:
+            active_chapters = db.get_active_chapters_for_subject(s["id"])
+            for active_ch in active_chapters:
                 running_any = True
                 cfg = db.get_exam_config(active_ch["id"])
                 st.markdown(
@@ -547,7 +547,7 @@ def subject_selection():
         style = subject_style(subj["name"])
         with col:
             with st.container(border=True, key=f"subject_card_{subj['id']}"):
-                active_ch = db.get_active_chapter_for_subject(subj["id"])
+                active_chapters = db.get_active_chapters_for_subject(subj["id"])
 
                 st.markdown(
                     f"<div class='subject-card-head'>"
@@ -557,32 +557,35 @@ def subject_selection():
                     unsafe_allow_html=True
                 )
 
-                if active_ch:
-                    # dropdown সরিয়ে সরাসরি চলমান অধ্যায়টিকে ছোট চিপ আকারে দেখানো
-                    st.markdown(
-                        f"<div class='chapter-chip-row'>"
-                        f"<span class='chapter-chip'><b>{active_ch['name']}</b> (পরীক্ষা চলছে)</span>"
-                        f"</div>",
-                        unsafe_allow_html=True
-                    )
+                if active_chapters:
+                    # dropdown সরিয়ে যতগুলো অধ্যায়ে পরীক্ষা চলছে সবগুলোই ছোট চিপ আকারে দেখানো
+                    for active_ch in active_chapters:
+                        st.markdown(
+                            f"<div class='chapter-chip-row'>"
+                            f"<span class='chapter-chip'><b>{active_ch['name']}</b> (পরীক্ষা চলছে)</span>"
+                            f"</div>",
+                            unsafe_allow_html=True
+                        )
 
-                    cfg = db.get_exam_config(active_ch["id"])
-                    q_count = len(db.get_questions(active_ch["id"]))
+                        cfg = db.get_exam_config(active_ch["id"])
+                        q_count = len(db.get_questions(active_ch["id"]))
 
-                    st.markdown(
-                        f"<div class='subject-meta'>সময়: {cfg['duration_minutes']} মিনিট &nbsp;•&nbsp; "
-                        f"মোট প্রশ্ন: {q_count} &nbsp;•&nbsp; "
-                        f"পূর্ণমান: {q_count * cfg['marks_per_question']}</div>",
-                        unsafe_allow_html=True
-                    )
+                        st.markdown(
+                            f"<div class='subject-meta'>সময়: {cfg['duration_minutes']} মিনিট &nbsp;•&nbsp; "
+                            f"মোট প্রশ্ন: {q_count} &nbsp;•&nbsp; "
+                            f"পূর্ণমান: {q_count * cfg['marks_per_question']}</div>",
+                            unsafe_allow_html=True
+                        )
 
-                    if st.button("🚀 পরীক্ষা শুরু করো", key=f"start_{subj['id']}", type="primary"):
-                        st.session_state.exam_chapter_id = active_ch["id"]
-                        st.session_state.exam_questions = db.get_questions(active_ch["id"])
-                        st.session_state.exam_start_time = time.time()
-                        st.session_state.exam_answers = {}
-                        st.session_state.exam_submitted_result = None
-                        st.rerun()
+                        if st.button("🚀 পরীক্ষা শুরু করো", key=f"start_{subj['id']}_{active_ch['id']}", type="primary"):
+                            st.session_state.exam_chapter_id = active_ch["id"]
+                            st.session_state.exam_questions = db.get_questions(active_ch["id"])
+                            st.session_state.exam_start_time = time.time()
+                            st.session_state.exam_answers = {}
+                            st.session_state.exam_submitted_result = None
+                            st.rerun()
+
+                        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
                 else:
                     st.markdown(
                         "<div class='status-pill status-idle'>কোনো পরীক্ষা চলছে না</div>",
